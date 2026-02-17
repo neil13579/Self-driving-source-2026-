@@ -1,0 +1,38 @@
+{
+    "carla" : {
+        "host" : "localhost",
+        "port" : 2000,
+        "timeout" : 10.0
+    },
+    "websocket" : {
+        "host" : "0.0.0.0",
+        "port" : 8765
+    },
+    "sensors" : {
+        "radar" : {
+            "horizontal_fov" : 30,
+            "vertical_fov" : 10,
+            "range" : 100,
+            "position": [2.0, 0.0, 1.0]
+        },
+        "lidar" : {
+            "channels" : 64,
+            "range" : 100.0,
+            "rotation_frequency" : 10.0,
+            "points_per_second" : 560000,
+            "position": [0.0, 0.0, 2.4]
+        }
+    },
+    "ukf" : {
+       "process_noise" : {
+        "position" : 0.1,
+        "velocity" : 0.5,
+        "orientation" : 0.01
+       },
+       "measurement_noise" : {
+        "gps":2.0,
+        "radar":0.5
+       }
+    }
+
+}

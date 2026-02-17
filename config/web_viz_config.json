@@ -1,0 +1,94 @@
+{
+  "configById": {
+    "3D!1": {
+      "cameraState": {
+        "perspective": true,
+        "distance": 30,
+        "phi": 60,
+        "thetaOffset": 45,
+        "targetOffset": [0, 0, 0],
+        "target": [0, 0, 0],
+        "targetOrientation": [0, 0, 0, 1]
+      },
+      "followTf": "base_link",
+      "scene": {
+        "enableStats": false,
+        "backgroundColor": "#1a1a1a"
+      },
+      "transforms": {
+        "showLabel": false
+      },
+      "topics": {
+        "/carla/lidar": {
+          "visible": true,
+          "pointSize": 2,
+          "colorField": "intensity",
+          "colorMode": "gradient",
+          "gradient": ["#0000ff", "#00ffff", "#00ff00", "#ffff00", "#ff0000"]
+        },
+        "/carla/fused_pose": {
+          "visible": true,
+          "type": "arrow"
+        }
+      }
+    },
+    "Plot!1": {
+      "paths": [
+        {
+          "value": "/carla/fused_pose.velocity.x",
+          "enabled": true,
+          "label": "Velocity X"
+        },
+        {
+          "value": "/carla/fused_pose.velocity.y",
+          "enabled": true,
+          "label": "Velocity Y"
+        }
+      ],
+      "showLegend": true,
+      "legendDisplay": "floating",
+      "showPlotValuesInLegend": true,
+      "isSynced": true,
+      "xAxisVal": "timestamp"
+    },
+    "RawMessages!1": {
+      "topicPath": "/carla/gps",
+      "diffEnabled": false,
+      "diffMethod": "custom",
+      "diffTopicPath": "",
+      "showFullMessageForDiff": false
+    },
+    "RawMessages!2": {
+      "topicPath": "/carla/imu"
+    },
+    "RawMessages!3": {
+      "topicPath": "/carla/radar"
+    }
+  },
+  "globalVariables": {},
+  "userNodes": {},
+  "playbackConfig": {
+    "speed": 1
+  },
+  "layout": {
+    "direction": "row",
+    "first": {
+      "direction": "column",
+      "first": "3D!1",
+      "second": "Plot!1",
+      "splitPercentage": 65
+    },
+    "second": {
+      "direction": "column",
+      "first": "RawMessages!1",
+      "second": {
+        "direction": "column",
+        "first": "RawMessages!2",
+        "second": "RawMessages!3",
+        "splitPercentage": 50
+      },
+      "splitPercentage": 33
+    },
+    "splitPercentage": 70
+  }
+}

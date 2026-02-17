@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CARLA Perception System - Professional Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.8em;
+            margin-bottom: 10px;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .card h2 {
+            font-size: 1.4em;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .image-container {
+            position: relative;
+            width: 100%;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            aspect-ratio: 1;
+        }
+
+        .image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.8);
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-size: 0.95em;
+            font-weight: 600;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-active {
+            background: #4CAF50;
+            box-shadow: 0 0 10px #4CAF50;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.08);
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #4CAF50;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.85;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .detections-list {
+            max-height: 350px;
+            overflow-y: auto;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .detection-item {
+            background: rgba(255,255,255,0.12);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.2s;
+        }
+
+        .detection-item:hover {
+            transform: translateX(5px);
+            background: rgba(255,255,255,0.18);
+        }
+
+        .detection-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .badge-vehicle { background: #4CAF50; }
+        .badge-person { background: #2196F3; }
+        .badge-traffic-light { background: #FF9800; }
+        .badge-traffic-sign { background: #FFC107; color: #333; }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn-start {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-start:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76,175,80,0.4);
+        }
+
+        .btn-stop {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-stop:hover {
+            background: #da190b;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(244,67,54,0.4);
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .color-box {
+            width: 30px;
+            height: 30px;
+            border-radius: 6px;
+            border: 2px solid rgba(255,255,255,0.5);
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.3);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.5);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2em;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚗 CARLA Vision System</h1>
+            <div class="subtitle">U-Net Semantic Segmentation + Real-time Object Detection</div>
+            
+            <!-- Connection Status Indicator -->
+            <div style="margin-top: 15px; display: flex; gap: 30px; justify-content: center; flex-wrap: wrap;">
+                <div style="padding: 8px 16px; background: rgba(255,255,255,0.15); border-radius: 20px; font-size: 0.95em;">
+                    <span id="statusDot" class="status-dot" style="background: #FF6B6B;"></span>
+                    <span id="statusText">Checking server...</span>
+                </div>
+                <div style="padding: 8px 16px; background: rgba(255,255,255,0.15); border-radius: 20px; font-size: 0.95em;">
+                    Camera: <span id="cameraStatus">--</span>
+                </div>
+                <div style="padding: 8px 16px; background: rgba(255,255,255,0.15); border-radius: 20px; font-size: 0.95em;">
+                    Frames: <span id="frameStatus">0</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="grid">
+            <!-- RGB Camera -->
+            <div class="card">
+                <h2>📷 RGB Camera</h2>
+                <div class="image-container">
+                    <img id="rgbImage" src="" alt="RGB Camera">
+                    <div class="overlay">
+                        <span class="status-dot status-active"></span>
+                        LIVE
+                    </div>
+                </div>
+            </div>
+
+            <!-- Semantic Segmentation -->
+            <div class="card">
+                <h2>🎨 Semantic Segmentation</h2>
+                <div class="image-container">
+                    <img id="segImage" src="" alt="Segmentation">
+                    <div class="overlay">
+                        FPS: <span id="fpsValue">0</span>
+                    </div>
+                </div>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="color-box" style="background: rgb(128,64,128)"></div>
+                        <span>Road</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="color-box" style="background: rgb(0,0,142)"></div>
+                        <span>Vehicle</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="color-box" style="background: rgb(220,20,60)"></div>
+                        <span>Person</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="color-box" style="background: rgb(70,130,180)"></div>
+                        <span>Sky</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Object Detection -->
+            <div class="card">
+                <h2>🎯 Object Detection</h2>
+                <div class="image-container">
+                    <img id="bboxImage" src="" alt="Bounding Boxes">
+                    <div class="overlay">
+                        Objects: <span id="objectCount">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LiDAR Point Cloud -->
+            <div class="card">
+                <h2>☁️ LiDAR Point Cloud</h2>
+                <canvas id="lidarCanvas" class="image-container" style="width: 100%; height: 350px;"></canvas>
+                <div style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">
+                    Points: <span id="lidarPoints">0</span> | Range: 50m | Channels: 32
+                </div>
+            </div>
+
+            <!-- Radar Detection -->
+            <div class="card">
+                <h2>📡 Radar Detection</h2>
+                <canvas id="radarCanvas" class="image-container" style="width: 100%; height: 350px;"></canvas>
+                <div style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">
+                    Objects: <span id="radarObjects">0</span> | Range: 100m
+                </div>
+            </div>
+
+            <!-- Statistics -->
+            <div class="card">
+                <h2>📊 Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Frames</div>
+                        <div class="stat-value" id="frameCount">0</div>
+                    </div>
+                    <div class="stat-card" style="border-left-color: #2196F3;">
+                        <div class="stat-label">Detections</div>
+                        <div class="stat-value" id="totalDetections">0</div>
+                    </div>
+                    <div class="stat-card" style="border-left-color: #FF9800;">
+                        <div class="stat-label">Active Tracks</div>
+                        <div class="stat-value" id="activeTracks">0</div>
+                    </div>
+                    <div class="stat-card" style="border-left-color: #9C27B0;">
+                        <div class="stat-label">Avg FPS</div>
+                        <div class="stat-value" id="avgFps">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Layered Composite View (RGB + Segmentation + LiDAR + Radar + BBoxes) -->
+        <div class="card" style="margin-top:20px;">
+            <h2>🧩 Layered Composite View</h2>
+            <canvas id="layeredCanvas" style="width:100%; height:420px; border-radius:10px; background:#000; display:block;"></canvas>
+            <div style="margin-top:8px; font-size:0.9em; opacity:0.85;">Combined view: RGB (base) + Segmentation (overlay) + LiDAR & Radar points + Bounding Boxes</div>
+        </div>
+
+        <!-- Detections List -->
+        <div class="card">
+            <h2>📋 Current Detections</h2>
+            <div class="detections-list" id="detectionsList">
+                <div class="loading">Waiting for detections...</div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="card">
+            <h2>🎮 Controls</h2>
+            <div class="controls">
+                <button class="btn-start" onclick="startSystem()">▶️ Start System</button>
+                <button class="btn-stop" onclick="stopSystem()">⏹️ Stop System</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isRunning = false;
+        let updateInterval = null;
+        let lidarCanvasCtx = null;
+        let radarCanvasCtx = null;
+        let layeredCanvasCtx = null;
+        let lastFrameTime = 0;
+        let frameCount = 0;
+
+        // Initialize canvases
+        window.addEventListener('load', () => {
+            const lidarCanvas = document.getElementById('lidarCanvas');
+            const radarCanvas = document.getElementById('radarCanvas');
+            const layeredCanvas = document.getElementById('layeredCanvas');
+            
+            lidarCanvasCtx = lidarCanvas.getContext('2d');
+            radarCanvasCtx = radarCanvas.getContext('2d');
+            layeredCanvasCtx = layeredCanvas.getContext('2d');
+            
+            // Set canvas sizes
+            lidarCanvas.width = lidarCanvas.offsetWidth;
+            lidarCanvas.height = lidarCanvas.offsetHeight;
+            radarCanvas.width = radarCanvas.offsetWidth;
+            radarCanvas.height = radarCanvas.offsetHeight;
+            layeredCanvas.width = layeredCanvas.offsetWidth;
+            layeredCanvas.height = layeredCanvas.offsetHeight;
+            
+            console.log('🚗 CARLA Vision System loaded');
+            console.log('Checking server connectivity...');
+            
+            // Check server health
+            checkHealth();
+            
+            // Auto-start after 2 seconds
+            setTimeout(() => {
+                startSystem();
+            }, 2000);
+        });
+
+        function checkHealth() {
+            fetch('/api/health')
+                .then(r => r.json())
+                .then(data => {
+                    console.log('✅ Server health:', data);
+                    if (data.status === 'ok') {
+                        console.log('  - CARLA connected:', data.carla_connected);
+                        console.log('  - Vehicle spawned:', data.vehicle_spawned);
+                        console.log('  - Sensors active:', data.sensors_active);
+                        console.log('  - Camera frames:', data.camera_frames);
+                        
+                        // Update UI status
+                        updateStatusIndicator('connected', data.camera_frames > 0);
+                    }
+                })
+                .catch(e => {
+                    console.error('❌ Health check failed:', e);
+                    updateStatusIndicator('error', false);
+                });
+        }
+
+        function updateStatusIndicator(status, hasData) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            const camStatus = document.getElementById('cameraStatus');
+            
+            if (status === 'error') {
+                dot.style.background = '#FF6B6B';
+                text.textContent = '❌ Server offline';
+            } else if (hasData) {
+                dot.style.background = '#51CF66';
+                text.textContent = '✅ Connected & receiving data';
+                camStatus.textContent = '✅';
+            } else {
+                dot.style.background = '#FFA94D';
+                text.textContent = '⏳ Waiting for data...';
+                camStatus.textContent = '⏳';
+            }
+        }
+
+        function drawLidarPointCloud(pointsData) {
+            if (!lidarCanvasCtx) return;
+            
+            const canvas = lidarCanvasCtx.canvas;
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Clear canvas
+            lidarCanvasCtx.fillStyle = 'rgba(20, 20, 40, 0.9)';
+            lidarCanvasCtx.fillRect(0, 0, width, height);
+            
+            // Draw grid
+            lidarCanvasCtx.strokeStyle = 'rgba(100, 150, 255, 0.2)';
+            lidarCanvasCtx.lineWidth = 1;
+            
+            const gridStep = 10; // 10m grid
+            const metersPerPixel = 100 / Math.min(width, height);
+            const pixelsPerMeter = 1 / metersPerPixel;
+            
+            for (let i = -50; i <= 50; i += gridStep) {
+                const x = (width / 2) + (i * pixelsPerMeter);
+                lidarCanvasCtx.beginPath();
+                lidarCanvasCtx.moveTo(x, 0);
+                lidarCanvasCtx.lineTo(x, height);
+                lidarCanvasCtx.stroke();
+                
+                const y = (height / 2) + (i * pixelsPerMeter);
+                lidarCanvasCtx.beginPath();
+                lidarCanvasCtx.moveTo(0, y);
+                lidarCanvasCtx.lineTo(width, y);
+                lidarCanvasCtx.stroke();
+            }
+            
+            // Draw ego vehicle marker
+            lidarCanvasCtx.fillStyle = '#00FF00';
+            lidarCanvasCtx.beginPath();
+            lidarCanvasCtx.arc(width / 2, height / 2, 8, 0, Math.PI * 2);
+            lidarCanvasCtx.fill();
+            
+            // Draw points
+            try {
+                const pointCount = pointsData.length / 4; // Each point has x, y, z, intensity
+                lidarCanvasCtx.fillStyle = 'rgba(100, 220, 255, 0.7)';
+                
+                for (let i = 0; i < pointCount; i++) {
+                    const x = pointsData[i * 4];
+                    const y = pointsData[i * 4 + 1];
+                    // z and intensity in [2] and [3]
+                    
+                    const pixelX = (width / 2) + (x * pixelsPerMeter);
+                    const pixelY = (height / 2) + (y * pixelsPerMeter);
+                    
+                    if (pixelX >= 0 && pixelX < width && pixelY >= 0 && pixelY < height) {
+                        lidarCanvasCtx.fillRect(pixelX - 1, pixelY - 1, 2, 2);
+                    }
+                }
+                
+                document.getElementById('lidarPoints').textContent = Math.floor(pointCount);
+            } catch (e) {
+                console.error('LiDAR rendering error:', e);
+            }
+            
+            // Draw range circle
+            lidarCanvasCtx.strokeStyle = 'rgba(150, 150, 255, 0.3)';
+            lidarCanvasCtx.lineWidth = 2;
+            lidarCanvasCtx.beginPath();
+            lidarCanvasCtx.arc(width / 2, height / 2, 50 * pixelsPerMeter, 0, Math.PI * 2);
+            lidarCanvasCtx.stroke();
+        }
+
+        function drawRadarDetections(radarData) {
+            if (!radarCanvasCtx) return;
+            
+            const canvas = radarCanvasCtx.canvas;
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Clear canvas
+            radarCanvasCtx.fillStyle = 'rgba(40, 20, 20, 0.9)';
+            radarCanvasCtx.fillRect(0, 0, width, height);
+            
+            // Draw grid
+            radarCanvasCtx.strokeStyle = 'rgba(255, 150, 100, 0.2)';
+            radarCanvasCtx.lineWidth = 1;
+            
+            const gridStep = 20; // 20m grid
+            const metersPerPixel = 100 / Math.min(width, height);
+            const pixelsPerMeter = 1 / metersPerPixel;
+            
+            for (let i = 0; i <= 100; i += gridStep) {
+                const x = (width / 2) + (i * pixelsPerMeter);
+                radarCanvasCtx.beginPath();
+                radarCanvasCtx.moveTo(x, 0);
+                radarCanvasCtx.lineTo(x, height);
+                radarCanvasCtx.stroke();
+            }
+            
+            // Draw ego vehicle marker
+            radarCanvasCtx.fillStyle = '#FF6600';
+            radarCanvasCtx.beginPath();
+            radarCanvasCtx.arc(width / 2, height / 2, 10, 0, Math.PI * 2);
+            radarCanvasCtx.fill();
+            
+            // Draw radar detections
+            try {
+                const detectionCount = radarData.length / 4; // x, y, z, velocity
+                
+                for (let i = 0; i < detectionCount; i++) {
+                    const x = radarData[i * 4];
+                    const y = radarData[i * 4 + 1];
+                    const z = radarData[i * 4 + 2];
+                    const velocity = radarData[i * 4 + 3];
+                    
+                    const pixelX = (width / 2) + (x * pixelsPerMeter);
+                    const pixelY = (height / 2) + (y * pixelsPerMeter);
+                    
+                    if (pixelX >= 0 && pixelX < width && pixelY >= 0 && pixelY < height) {
+                        // Color based on velocity
+                        const vel = Math.abs(velocity);
+                        let color = '#00FF00'; // Green - stationary
+                        if (vel > 5) color = '#FFFF00'; // Yellow - moving
+                        if (vel > 15) color = '#FF0000'; // Red - fast moving
+                        
+                        radarCanvasCtx.fillStyle = color;
+                        radarCanvasCtx.beginPath();
+                        radarCanvasCtx.arc(pixelX, pixelY, 6, 0, Math.PI * 2);
+                        radarCanvasCtx.fill();
+                        
+                        // Draw velocity vector
+                        const velScale = 0.5;
+                        radarCanvasCtx.strokeStyle = color;
+                        radarCanvasCtx.lineWidth = 2;
+                        radarCanvasCtx.beginPath();
+                        radarCanvasCtx.moveTo(pixelX, pixelY);
+                        radarCanvasCtx.lineTo(
+                            pixelX + (x * velScale * pixelsPerMeter),
+                            pixelY + (y * velScale * pixelsPerMeter)
+                        );
+                        radarCanvasCtx.stroke();
+                    }
+                }
+                
+                document.getElementById('radarObjects').textContent = Math.floor(detectionCount);
+            } catch (e) {
+                console.error('Radar rendering error:', e);
+            }
+            
+            // Draw max range circle
+            radarCanvasCtx.strokeStyle = 'rgba(255, 150, 100, 0.3)';
+            radarCanvasCtx.lineWidth = 2;
+            radarCanvasCtx.beginPath();
+            radarCanvasCtx.arc(width / 2, height / 2, 100 * pixelsPerMeter, 0, Math.PI * 2);
+            radarCanvasCtx.stroke();
+        }
+
+        function drawLayered(rgb_b64, seg_b64, lidarArray, radarArray, detections) {
+            if (!layeredCanvasCtx) return;
+            const ctx = layeredCanvasCtx;
+            const canvas = ctx.canvas;
+            const w = canvas.width;
+            const h = canvas.height;
+
+            // Clear
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, w, h);
+
+            // Helper to draw images in sequence
+            const baseImg = new Image();
+            const segImg = new Image();
+            let imagesLoaded = 0;
+            const onLoad = () => {
+                imagesLoaded += 1;
+                if (imagesLoaded < 1) return; // wait for base at least
+                // Draw base RGB full canvas
+                try {
+                    ctx.globalAlpha = 1.0;
+                    ctx.drawImage(baseImg, 0, 0, w, h);
+                } catch (e) {
+                    // fallback: black background
+                    ctx.fillStyle = '#000'; ctx.fillRect(0,0,w,h);
+                }
+
+                // Draw segmentation overlay with transparency
+                try {
+                    ctx.globalAlpha = 0.45;
+                    ctx.drawImage(segImg, 0, 0, w, h);
+                    ctx.globalAlpha = 1.0;
+                } catch (e) {
+                    ctx.globalAlpha = 1.0;
+                }
+
+                // Draw LiDAR and Radar in ego-centric projection
+                try {
+                    const pixelsPerMeter = 1 / (100 / Math.min(w, h));
+                    // LiDAR points
+                    if (lidarArray) {
+                        ctx.fillStyle = 'rgba(100,220,255,0.8)';
+                        const count = lidarArray.length / 4;
+                        for (let i=0;i<count;i++){
+                            const x = lidarArray[i*4];
+                            const y = lidarArray[i*4+1];
+                            const px = (w/2) + (x * pixelsPerMeter);
+                            const py = (h/2) + (y * pixelsPerMeter);
+                            if (px>=0 && px<w && py>=0 && py<h) ctx.fillRect(px-1, py-1, 2, 2);
+                        }
+                    }
+
+                    // Radar points
+                    if (radarArray) {
+                        const count = radarArray.length / 4;
+                        for (let i=0;i<count;i++){
+                            const x = radarArray[i*4];
+                            const y = radarArray[i*4+1];
+                            const vel = radarArray[i*4+3];
+                            let color = '#00FF00'; if (Math.abs(vel)>5) color='#FFFF00'; if (Math.abs(vel)>15) color='#FF0000';
+                            ctx.fillStyle = color;
+                            const px = (w/2) + (x * pixelsPerMeter);
+                            const py = (h/2) + (y * pixelsPerMeter);
+                            if (px>=0 && px<w && py>=0 && py<h) {
+                                ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI*2); ctx.fill();
+                                // velocity vector
+                                ctx.strokeStyle = color; ctx.lineWidth = 2;
+                                ctx.beginPath(); ctx.moveTo(px,py);
+                                ctx.lineTo(px + (x*0.5*pixelsPerMeter), py + (y*0.5*pixelsPerMeter)); ctx.stroke();
+                            }
+                        }
+                    }
+                } catch (e) {
+                    // ignore
+                }
+
+                // Draw bounding boxes
+                try {
+                    if (detections && detections.length>0) {
+                        ctx.lineWidth = 2;
+                        detections.forEach(det => {
+                            const box = det.bbox; // [x1,y1,x2,y2]
+                            ctx.strokeStyle = '#FFCC00';
+                            ctx.globalAlpha = 0.95;
+                            const x = (box[0] / 256.0) * w;
+                            const y = (box[1] / 256.0) * h;
+                            const bw = ((box[2]-box[0]) / 256.0) * w;
+                            const bh = ((box[3]-box[1]) / 256.0) * h;
+                            ctx.strokeRect(x, y, bw, bh);
+                            // label
+                            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                            ctx.fillRect(x, y-18, 80, 18);
+                            ctx.fillStyle = '#fff';
+                            ctx.font = '14px sans-serif';
+                            ctx.fillText(det.class + ' ' + Math.round(det.confidence*100) + '%', x+4, y-4);
+                        });
+                        ctx.globalAlpha = 1.0;
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            };
+
+            baseImg.onload = onLoad;
+            segImg.onload = onLoad;
+            baseImg.src = 'data:image/jpeg;base64,' + rgb_b64;
+            segImg.src = 'data:image/jpeg;base64,' + seg_b64;
+        }
+
+        async function startSystem() {
+            try {
+                const response = await fetch('/api/start', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.status === 'started') {
+                    isRunning = true;
+                    console.log('✓ System started');
+                    startUpdates();
+                }
+            } catch (error) {
+                console.error('Error starting system:', error);
+                alert('Failed to start system. Make sure the server is running.');
+            }
+        }
+
+        async function stopSystem() {
+            try {
+                const response = await fetch('/api/stop', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.status === 'stopped') {
+                    isRunning = false;
+                    console.log('✓ System stopped');
+                    if (updateInterval) {
+                        clearInterval(updateInterval);
+                    }
+                }
+            } catch (error) {
+                console.error('Error stopping system:', error);
+            }
+        }
+
+        function startUpdates() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+            
+            // Check health every 2 seconds
+            setInterval(checkHealth, 2000);
+            
+            // Update frame every 100ms
+            updateInterval = setInterval(updateFrame, 100);
+
+        async function updateFrame() {
+            if (!isRunning) return;
+
+            try {
+                const response = await fetch('/api/frame');
+                if (!response.ok) {
+                    updateStatusIndicator('error', false);
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                // Update connection status
+                updateStatusIndicator('connected', true);
+                document.getElementById('frameStatus').textContent = data.stats.frame_count || 0;
+                
+                // Update images
+                if (data.rgb) document.getElementById('rgbImage').src = 'data:image/jpeg;base64,' + data.rgb;
+                if (data.segmentation) document.getElementById('segImage').src = 'data:image/jpeg;base64,' + data.segmentation;
+                if (data.bbox) document.getElementById('bboxImage').src = 'data:image/jpeg;base64,' + data.bbox;
+                
+                // Update stats
+                const stats = data.stats;
+                document.getElementById('frameCount').textContent = stats.frame_count;
+                document.getElementById('totalDetections').textContent = stats.total_detections;
+                document.getElementById('activeTracks').textContent = stats.active_tracks;
+                document.getElementById('objectCount').textContent = data.detections.length;
+                
+                // Display server-side FPS directly (accurate sensor rate)
+                document.getElementById('fpsValue').textContent = (stats.fps || 0).toFixed(1);
+                document.getElementById('avgFps').textContent = (stats.fps || 0).toFixed(1);
+                
+                // Track frame receipt for polling FPS display
+                frameCount++;
+                lastFrameTime = performance.now();
+                
+                // Update detections list
+                updateDetectionsList(data.detections);
+                
+                // Handle LiDAR data if available
+                if (data.lidarPoints) {
+                    try {
+                        const hexStr = data.lidarPoints;
+                        const bytes = new Uint8Array(hexStr.length / 2);
+                        for (let i = 0; i < hexStr.length; i += 2) {
+                            bytes[i / 2] = parseInt(hexStr.substr(i, 2), 16);
+                        }
+                        var lidarArray = new Float32Array(bytes.buffer);
+                        drawLidarPointCloud(lidarArray);
+                    } catch (e) {
+                        console.error('LiDAR decode error:', e);
+                    }
+                }
+                
+                // Handle Radar data if available
+                if (data.radarObjects) {
+                    try {
+                        const hexStr = data.radarObjects;
+                        const bytes = new Uint8Array(hexStr.length / 2);
+                        for (let i = 0; i < hexStr.length; i += 2) {
+                            bytes[i / 2] = parseInt(hexStr.substr(i, 2), 16);
+                        }
+                        var radarArray = new Float32Array(bytes.buffer);
+                        drawRadarDetections(radarArray);
+                    } catch (e) {
+                        console.error('Radar decode error:', e);
+                    }
+                }
+                
+                // Draw layered composite (RGB base + segmentation overlay + LiDAR + Radar + bboxes)
+                try {
+                    drawLayered(data.rgb, data.segmentation, lidarArray, radarArray, data.detections);
+                } catch (e) {
+                    // ignore if any component missing
+                }
+                
+            } catch (error) {
+                console.error('Error updating frame:', error);
+            }
+        }
+
+        function updateDetectionsList(detections) {
+            const list = document.getElementById('detectionsList');
+            
+            if (detections.length === 0) {
+                list.innerHTML = '<div class="loading">No detections</div>';
+                return;
+            }
+            
+            const getBadgeClass = (cls) => {
+                return 'badge-' + cls.toLowerCase().replace(' ', '-');
+            };
+            
+            list.innerHTML = detections.map((det, idx) => `
+                <div class="detection-item">
+                    <div>
+                        <strong>Detection #${idx + 1}</strong><br>
+                        <small style="opacity: 0.8;">
+                            Bbox: [${det.bbox.map(v => v.toFixed(0)).join(', ')}]
+                        </small>
+                    </div>
+                    <div style="text-align: right;">
+                        <div class="detection-badge ${getBadgeClass(det.class)}">
+                            ${det.class}
+                        </div>
+                        <div style="margin-top: 6px; font-size: 1.1em; font-weight: bold;">
+                            ${(det.confidence * 100).toFixed(1)}%
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>

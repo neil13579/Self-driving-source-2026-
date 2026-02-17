@@ -1,0 +1,58 @@
+🚨 STOP AND RESTART THE SERVER 🚨
+
+The unified_perception_server.py has been fixed!
+
+STEPS:
+======
+
+1. STOP the current server
+   - Go to the command prompt where it's running
+   - Press Ctrl+C to stop it
+
+2. WAIT 3 seconds for cleanup
+
+3. START the server again
+   - Run: python unified_perception_server.py
+   - OR double-click: launch_perception.bat
+
+4. OPEN DASHBOARD
+   - Once it says "Running on http://127.0.0.1:5000"
+   - Open your browser to: http://localhost:5000
+
+======
+
+What's Fixed:
+✓ WebSocket threading issue - now using proper event loop
+✓ Actor spawning - all vehicles/pedestrians on roads now
+✓ Actor movement - all have autopilot enabled
+✓ Dashboard connectivity - Flask and WebSocket now properly connected
+
+======
+
+Expected Console Output:
+  ✓ Ego vehicle spawned with autopilot
+  ✓ Spawned 25-30/30 vehicles with autopilot on roads
+  ✓ Spawned 25-28/30 pedestrians with AI navigation on sidewalks
+  ✓ Camera sensor attached
+  ✓ LIDAR sensor attached
+  ✓ RADAR sensor attached
+  ✓ WebSocket server started
+  ✓ Frame processing thread started
+  ✓ Starting Flask server on http://localhost:5000
+
+======
+
+The actors will now:
+- Be positioned on roads/sidewalks (not random)
+- All have autopilot enabled
+- All have controllers for movement
+- All traverse around the map continuously
+
+Dashboard will show:
+- Live video feed with YOLO boxes
+- Semantic segmentation
+- LIDAR point cloud
+- RADAR visualization
+- UKF fusion state
+
+Enjoy! 🚗✨

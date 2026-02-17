@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CARLA Foxglove 3D Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+        
+        #canvas {
+            display: block;
+            width: 100%;
+            height: 100vh;
+        }
+        
+        #ui {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            pointer-events: none;
+        }
+        
+        .header {
+            background: rgba(0, 0, 0, 0.8);
+            border-bottom: 2px solid #0f0;
+            padding: 15px 20px;
+            color: #0f0;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 1.5em;
+            margin-bottom: 5px;
+        }
+        
+        .status-bar {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff0000;
+            animation: blink 1s infinite;
+        }
+        
+        .status-dot.connected {
+            background: #0f0;
+            animation: none;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+        
+        .controls {
+            position: fixed;
+            top: 120px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #0f0;
+            border-radius: 4px;
+            padding: 15px;
+            pointer-events: all;
+            width: 220px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-group label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            color: #0f0;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+        
+        .control-group input[type="checkbox"] {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+        }
+        
+        .stats {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #0f0;
+            border-radius: 4px;
+            padding: 15px;
+            font-size: 0.85em;
+            pointer-events: all;
+            min-width: 200px;
+        }
+        
+        .stat-line {
+            margin: 5px 0;
+        }
+        
+        .stat-label {
+            color: #888;
+        }
+        
+        .stat-value {
+            color: #0f0;
+            font-weight: bold;
+        }
+        
+        .instructions {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #0f0;
+            border-radius: 4px;
+            padding: 15px;
+            font-size: 0.85em;
+            pointer-events: all;
+            max-width: 250px;
+        }
+        
+        .instructions h4 {
+            margin-bottom: 8px;
+            color: #0f0;
+        }
+        
+        .instructions p {
+            margin: 5px 0;
+            color: #888;
+            font-size: 0.8em;
+        }
+        
+        .error {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            border: 3px solid #ff0000;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            color: #ff0000;
+            z-index: 100;
+            pointer-events: all;
+        }
+        
+        .error h2 {
+            margin-bottom: 15px;
+        }
+        
+        .error button {
+            background: #ff0000;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin-top: 15px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        #error-container {
+            display: none;
+        }
+        
+        #diagnostics {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #0f0;
+            color: #0f0;
+            padding: 15px;
+            font-size: 0.8em;
+            font-family: monospace;
+            max-width: 300px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 50;
+        }
+        
+        .diagnostic-line {
+            margin: 5px 0;
+            font-size: 0.85em;
+        }
+        
+        .diagnostic-error {
+            color: #ff0000;
+        }
+        
+        .diagnostic-success {
+            color: #00ff00;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="renderCanvas" style="width: 100%; height: 100%; display: block;"></canvas>
+    
+    <div id="diagnostics">
+        <strong>Loading...</strong>
+        <div id="diagnostic-log"></div>
+    </div>
+    
+    <div id="ui">
+        <div class="header">
+            <h1>🎮 CARLA 3D Sensor Visualization</h1>
+            <div class="status-bar">
+                <div class="status-item">
+                    <div class="status-dot" id="connection-dot"></div>
+                    <span id="connection-text">Connecting...</span>
+                </div>
+                <div class="status-item">
+                    Frames: <span id="frame-count">0</span>
+                </div>
+                <div class="status-item">
+                    FPS: <span id="fps">0</span>
+                </div>
+                <div class="status-item">
+                    Points: <span id="point-count">0</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label>
+                    <input type="checkbox" id="show-camera" checked>
+                    📷 Camera Feed
+                </label>
+                <label>
+                    <input type="checkbox" id="show-lidar" checked>
+                    ☁️ LIDAR Points
+                </label>
+                <label>
+                    <input type="checkbox" id="show-radar" checked>
+                    📡 RADAR Markers
+                </label>
+                <label>
+                    <input type="checkbox" id="show-vehicles" checked>
+                    🚗 Vehicles
+                </label>
+                <label>
+                    <input type="checkbox" id="show-grid" checked>
+                    📐 Grid
+                </label>
+            </div>
+            
+            <div class="control-group">
+                <label>View Mode:</label>
+                <select id="view-mode" style="width: 100%; padding: 5px; background: #000; color: #0f0; border: 1px solid #0f0;">
+                    <option value="orbit">Orbit</option>
+                    <option value="ego">Ego View</option>
+                    <option value="topdown">Top-Down</option>
+                    <option value="follow">Follow</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-line">
+                <span class="stat-label">Position:</span>
+                <span class="stat-value" id="ego-pos">--</span>
+            </div>
+            <div class="stat-line">
+                <span class="stat-label">Heading:</span>
+                <span class="stat-value" id="ego-heading">--</span>
+            </div>
+            <div class="stat-line">
+                <span class="stat-label">Vehicles:</span>
+                <span class="stat-value" id="vehicle-count">0</span>
+            </div>
+            <div class="stat-line">
+                <span class="stat-label">LIDAR Pts:</span>
+                <span class="stat-value" id="lidar-count">0</span>
+            </div>
+            <div class="stat-line">
+                <span class="stat-label">RADAR Pts:</span>
+                <span class="stat-value" id="radar-count">0</span>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h4>Controls</h4>
+            <p><strong>Left Click + Drag:</strong> Rotate</p>
+            <p><strong>Right Click + Drag:</strong> Pan</p>
+            <p><strong>Scroll:</strong> Zoom</p>
+            <p><strong>Space:</strong> Reset View</p>
+        </div>
+    </div>
+    
+    <div id="error-container"></div>
+    
+    <!-- Diagnostic stub (defines addDiagnostic early so CDN onerror handlers can call it) -->
+    <script>
+        window._diagQueue = window._diagQueue || [];
+        window.addDiagnostic = function(message, isError = false) {
+            try {
+                const log = document.getElementById('diagnostic-log');
+                if (log) {
+                    const line = document.createElement('div');
+                    line.className = 'diagnostic-line ' + (isError ? 'diagnostic-error' : 'diagnostic-success');
+                    line.textContent = message;
+                    log.appendChild(line);
+                    log.scrollTop = log.scrollHeight;
+                } else {
+                    window._diagQueue.push({ message, isError });
+                }
+            } catch (e) {
+                try { console.log(message); } catch(_){}
+            }
+        };
+    </script>
+
+    <!-- Babylon.js - Multiple CDN sources for reliability -->
+    <script src="https://cdn.jsdelivr.net/npm/babylonjs@5.59.1/babylon.min.js" onload="addDiagnostic('✅ Babylon.js (jsdelivr) loaded')" onerror="addDiagnostic('⚠️ jsdelivr failed, trying unpkg...', false)"></script>
+    <script src="https://unpkg.com/babylonjs@5.59.1/babylon.min.js" onload="addDiagnostic('✅ Babylon.js (unpkg) loaded')" onerror="addDiagnostic('⚠️ unpkg failed, trying cloudflare...', false)"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babylonjs/5.59.1/babylon.min.js" onload="addDiagnostic('✅ Babylon.js (cloudflare) loaded')" onerror="addDiagnostic('⚠️ cloudflare failed', false)"></script>
+    <script src="https://cdn.babylonjs.com/babylon.js" onload="addDiagnostic('✅ Babylon.js (official) loaded')" onerror="addDiagnostic('⚠️ official CDN failed', false)"></script>
+    
+    <script>
+        // === DIAGNOSTIC LOGGING ===
+        function addDiagnostic(message, isError = false) {
+            console.log(message);
+            const log = document.getElementById('diagnostic-log');
+            if (log) {
+                const line = document.createElement('div');
+                line.className = `diagnostic-line ${isError ? 'diagnostic-error' : 'diagnostic-success'}`;
+                line.textContent = message;
+                log.appendChild(line);
+                log.scrollTop = log.scrollHeight;
+            }
+        }
+        
+        // === DEBUG LOGGING ===
+        // Flush any queued diagnostics (from early stub)
+        if (window._diagQueue && window._diagQueue.length) {
+            window._diagQueue.forEach(item => addDiagnostic(item.message, item.isError));
+            window._diagQueue = [];
+        }
+        addDiagnostic('📄 Page loaded, starting initialization...');
+        
+        // === CONFIGURATION ===
+        const WS_URL = 'ws://localhost:8766';
+        let ws = null;
+        let engine, scene, camera;
+        let lidarPointCloud, radarMarkers, vehicleMarkers;
+        let frameCount = 0;
+        let lastFrameTime = Date.now();
+        let fps = 0;
+        let egoVehicle = null;
+        let viewMode = 'orbit';
+        
+        const visibility = {
+            camera: true,
+            lidar: true,
+            radar: true,
+            vehicles: true,
+            grid: true
+        };
+        
+        // === ERROR HANDLING ===
+        function showError(title, message) {
+            addDiagnostic(`ERROR: ${title} - ${message}`, true);
+            const container = document.getElementById('error-container');
+            container.innerHTML = `
+                <div class="error">
+                    <h2>${title}</h2>
+                    <p>${message}</p>
+                    <button onclick="location.reload()">Retry</button>
+                </div>
+            `;
+            container.style.display = 'block';
+        }
+        
+        // === BABYLON.JS SETUP ===
+        function initBabylon() {
+            try {
+                addDiagnostic('🔧 Initializing Babylon.js...');
+                
+                const canvas = document.getElementById('renderCanvas');
+                if (!canvas) {
+                    throw new Error('Canvas element not found');
+                }
+                addDiagnostic('✅ Canvas element found');
+                
+                if (typeof BABYLON === 'undefined') {
+                    throw new Error('BABYLON library not loaded');
+                }
+                addDiagnostic('✅ BABYLON library available');
+                
+                engine = new BABYLON.Engine(canvas, true);
+                addDiagnostic('✅ Engine created');
+                
+                // Create scene
+                scene = new BABYLON.Scene(engine);
+                scene.clearColor = new BABYLON.Color3(0.04, 0.04, 0.04);
+                scene.collisionsEnabled = true;
+                addDiagnostic('✅ Scene created');
+            
+            // Camera with ArcRotateCamera (similar to orbit controls)
+            camera = new BABYLON.ArcRotateCamera("mainCamera", 
+                Math.PI / 4, 
+                Math.PI / 3, 
+                80, 
+                new BABYLON.Vector3(0, 0, 0), 
+                scene
+            );
+            camera.attachControl(canvas, true);
+            camera.inertia = 0.7;
+            camera.angularSensibilityX = 1000;
+            camera.angularSensibilityY = 1000;
+            camera.wheelPrecision = 50;
+            
+            // Lighting
+            const ambientLight = new BABYLON.HemisphericLight("ambientLight", 
+                new BABYLON.Vector3(0, 1, 0), 
+                scene
+            );
+            ambientLight.intensity = 0.6;
+            
+            const directionalLight = new BABYLON.PointLight("directionalLight", 
+                new BABYLON.Vector3(50, 50, 50), 
+                scene
+            );
+            directionalLight.intensity = 0.8;
+            
+            // Ground plane
+            const ground = BABYLON.MeshBuilder.CreateGround("ground", 
+                { width: 500, height: 500 }, 
+                scene
+            );
+            ground.material = new BABYLON.StandardMaterial("groundMat", scene);
+            ground.material.diffuse = new BABYLON.Color3(0.2, 0.2, 0.2);
+            
+            // Grid - Simple line-based grid
+            const gridLines = BABYLON.MeshBuilder.CreateGround("grid", 
+                { width: 200, height: 200, subdivisions: 40 }, 
+                scene
+            );
+            const gridMaterial = new BABYLON.StandardMaterial("gridMat", scene);
+            gridMaterial.emissiveColor = new BABYLON.Color3(0, 1, 0);
+            gridMaterial.wireframe = true;
+            gridLines.material = gridMaterial;
+            gridLines.position.y = 0.01;
+            
+            // Axes
+            const axisX = BABYLON.MeshBuilder.CreateTube("axisX", { path: [new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(20, 0, 0)], radius: 0.1 }, scene);
+            axisX.material = new BABYLON.StandardMaterial("mat", scene);
+            axisX.material.emissiveColor = new BABYLON.Color3(1, 0, 0);
+            
+            const axisY = BABYLON.MeshBuilder.CreateTube("axisY", { path: [new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(0, 20, 0)], radius: 0.1 }, scene);
+            axisY.material = new BABYLON.StandardMaterial("ymat", scene);
+            axisY.material.emissiveColor = new BABYLON.Color3(0, 1, 0);
+            
+            const axisZ = BABYLON.MeshBuilder.CreateTube("axisZ", { path: [new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(0, 0, 20)], radius: 0.1 }, scene);
+            axisZ.material = new BABYLON.StandardMaterial("zmat", scene);
+            axisZ.material.emissiveColor = new BABYLON.Color3(0, 0, 1);
+            
+            // Ego vehicle representation
+            egoVehicle = BABYLON.MeshBuilder.CreateBox("egoVehicle", 
+                { width: 2, height: 1.5, depth: 5 }, 
+                scene
+            );
+            egoVehicle.position.y = 1;
+            egoVehicle.material = new BABYLON.StandardMaterial("egoMat", scene);
+            egoVehicle.material.emissiveColor = new BABYLON.Color3(1, 1, 0);
+            
+            // Point cloud for LIDAR (container for points)
+            lidarPointCloud = new BABYLON.TransformNode("lidar", scene);
+            
+            // Radar markers group
+            radarMarkers = new BABYLON.TransformNode("radarMarkers", scene);
+            
+            // Vehicle markers group
+            vehicleMarkers = new BABYLON.TransformNode("vehicleMarkers", scene);
+            addDiagnostic('✅ All objects created');
+            
+            // Animation loop
+            engine.runRenderLoop(() => {
+                scene.render();
+                animate();
+            });
+            addDiagnostic('✅ Render loop started');
+            
+            // Handle window resize
+            window.addEventListener('resize', () => {
+                engine.resize();
+            });
+            
+                addDiagnostic('✅ Babylon.js initialization complete!');
+            } catch (error) {
+                addDiagnostic(`❌ Babylon.js error: ${error.message}`, true);
+                showError('Initialization Failed', error.message);
+            }
+        }
+        
+        function animate() {
+            // Update visibility
+            if (lidarPointCloud) lidarPointCloud.visibility = visibility.lidar ? 1 : 0;
+            if (radarMarkers) radarMarkers.visibility = visibility.radar ? 1 : 0;
+            if (vehicleMarkers) vehicleMarkers.visibility = visibility.vehicles ? 1 : 0;
+            
+            // Update view mode
+            if (viewMode === 'topdown') {
+                camera.alpha = 0;
+                camera.beta = Math.PI / 2 - 0.1;
+                camera.radius = 100;
+                camera.target = egoVehicle.position.clone();
+            } else if (viewMode === 'ego') {
+                camera.alpha = egoVehicle.rotation.y;
+                camera.beta = Math.PI / 3;
+                camera.radius = 10;
+                const offset = new BABYLON.Vector3(0, 2, 10);
+                camera.target = BABYLON.Vector3.Add(egoVehicle.position, offset);
+            } else if (viewMode === 'follow') {
+                const lerp = (a, b, t) => a + (b - a) * t;
+                camera.radius = lerp(camera.radius, 20, 0.05);
+                const offset = new BABYLON.Vector3(0, 5, 0);
+                camera.target = BABYLON.Vector3.Add(egoVehicle.position, offset);
+            }
+            
+            // Update FPS
+            frameCount++;
+            const now = Date.now();
+            if (now - lastFrameTime > 1000) {
+                fps = frameCount;
+                frameCount = 0;
+                lastFrameTime = now;
+                document.getElementById('fps').textContent = fps;
+                document.getElementById('frame-count').textContent = frameCount;
+            }
+        }
+        
+        // === WEBSOCKET HANDLING ===
+        function connectWebSocket() {
+            try {
+                ws = new WebSocket(WS_URL);
+                
+                ws.onopen = () => {
+                    console.log('✅ Connected to Foxglove server');
+                    document.getElementById('connection-dot').className = 'status-dot connected';
+                    document.getElementById('connection-text').textContent = 'Connected';
+                };
+                
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        processMessages(data.messages);
+                    } catch (e) {
+                        console.error('Error processing message:', e, event.data);
+                        addDiagnostic('❌ Error processing message: ' + e + '\nData: ' + event.data);
+                    }
+                };
+
+                ws.onerror = (error) => {
+                    console.error('❌ WebSocket error:', error);
+                    addDiagnostic('❌ WebSocket error: ' + JSON.stringify(error));
+                    document.getElementById('connection-dot').className = 'status-dot';
+                    document.getElementById('connection-text').textContent = 'Error';
+                };
+
+                ws.onclose = (event) => {
+                    console.log('⚠️ Connection closed, retrying...', event);
+                    addDiagnostic('⚠️ WebSocket closed: code=' + event.code + ', reason=' + event.reason + ', wasClean=' + event.wasClean);
+                    document.getElementById('connection-dot').className = 'status-dot';
+                    document.getElementById('connection-text').textContent = 'Disconnected';
+                    setTimeout(connectWebSocket, 2000);
+                };
+            } catch (error) {
+                showError('Connection Error', `Unable to connect to ${WS_URL}`);
+            }
+        }
+        
+        function processMessages(messages) {
+            if (!messages || !Array.isArray(messages)) return;
+            
+            messages.forEach(msg => {
+                const topic = msg.topic;
+                const message = msg.message;
+                
+                switch (topic) {
+                    case '/lidar/points':
+                        updateLidarPointCloud(message);
+                        break;
+                    case '/radar/markers':
+                        updateRadarMarkers(message);
+                        break;
+                    case '/vehicles/markers':
+                        updateVehicleMarkers(message);
+                        break;
+                    case '/ego_pose':
+                        updateEgoPose(message);
+                        break;
+                    case '/camera/rgb':
+                        updateCameraFeed(message);
+                        break;
+                }
+            });
+        }
+        
+        function updateLidarPointCloud(message) {
+            if (!message.data) return;
+            
+            const buffer = base64ToArrayBuffer(message.data);
+            const points = new Float32Array(buffer);
+            
+            // Dispose old point cloud children
+            lidarPointCloud.getChildren().forEach(child => {
+                if (child.dispose) child.dispose();
+            });
+            
+            // Create new point cloud using sphere instances (limit for performance)
+            const maxPoints = Math.min(points.length / 3, 5000);
+            for (let i = 0; i < maxPoints; i++) {
+                const sphere = BABYLON.MeshBuilder.CreateSphere(`lidar_${i}`, { diameter: 0.05 }, scene);
+                sphere.position = new BABYLON.Vector3(
+                    points[i * 3],
+                    points[i * 3 + 2],
+                    points[i * 3 + 1]
+                );
+                sphere.material = new BABYLON.StandardMaterial(`lidarMat_${i}`, scene);
+                sphere.material.emissiveColor = new BABYLON.Color3(0, 1, 1);
+                sphere.parent = lidarPointCloud;
+            }
+            
+            document.getElementById('lidar-count').textContent = Math.min(points.length / 3, 5000);
+        }
+        
+        function updateRadarMarkers(message) {
+            // Clear existing markers
+            radarMarkers.getChildren().forEach(child => {
+                if (child.dispose) child.dispose();
+            });
+            
+            // Add new markers
+            if (message && message.markers) {
+                message.markers.forEach((marker, idx) => {
+                    const sphere = BABYLON.MeshBuilder.CreateSphere(`radar_${idx}`, { diameter: 0.6 }, scene);
+                    const pos = marker.pose.position;
+                    sphere.position = new BABYLON.Vector3(pos.x, pos.z, pos.y);
+                    
+                    sphere.material = new BABYLON.StandardMaterial(`radarMat_${idx}`, scene);
+                    sphere.material.emissiveColor = new BABYLON.Color3(1, 0, 1);
+                    sphere.parent = radarMarkers;
+                });
+            }
+            
+            document.getElementById('radar-count').textContent = (message && message.markers) ? message.markers.length : 0;
+        }
+        
+        function updateVehicleMarkers(message) {
+            // Clear existing markers
+            vehicleMarkers.getChildren().forEach(child => {
+                if (child.dispose) child.dispose();
+            });
+            
+            // Add new markers
+            if (message && message.markers) {
+                message.markers.forEach((marker, idx) => {
+                    const box = BABYLON.MeshBuilder.CreateBox(`vehicle_${idx}`, {
+                        width: marker.scale.x,
+                        height: marker.scale.z,
+                        depth: marker.scale.y
+                    }, scene);
+                    
+                    const pos = marker.pose.position;
+                    box.position = new BABYLON.Vector3(pos.x, pos.z, pos.y);
+                    
+                    // Handle rotation if available
+                    if (marker.pose.orientation) {
+                        const ori = marker.pose.orientation;
+                        const quat = new BABYLON.Quaternion(ori.x, ori.z, ori.y, ori.w);
+                        box.rotationQuaternion = quat;
+                    }
+                    
+                    box.material = new BABYLON.StandardMaterial(`vehicleMat_${idx}`, scene);
+                    const color = marker.id === -1 ? new BABYLON.Color3(1, 1, 0) : new BABYLON.Color3(0, 0, 1);
+                    box.material.emissiveColor = color;
+                    box.parent = vehicleMarkers;
+                });
+            }
+            
+            document.getElementById('vehicle-count').textContent = 
+                (message && message.markers) ? message.markers.filter(m => m.id !== -1).length : 0;
+        }
+        
+        function updateEgoPose(message) {
+            if (!message || !message.pose) return;
+            
+            const pos = message.pose.position;
+            const ori = message.pose.orientation;
+            
+            egoVehicle.position = new BABYLON.Vector3(pos.x, pos.z, pos.y);
+            if (ori) {
+                egoVehicle.rotationQuaternion = new BABYLON.Quaternion(ori.x, ori.z, ori.y, ori.w);
+            }
+            
+            document.getElementById('ego-pos').textContent = 
+                `${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)}`;
+        }
+        
+        function updateCameraFeed(message) {
+            // Create camera display plane if not exists
+            let plane = scene.getMeshByName('cameraPlane');
+            if (!plane && visibility.camera) {
+                plane = BABYLON.MeshBuilder.CreatePlane('cameraPlane', { size: 2.0 }, scene);
+                plane.position = new BABYLON.Vector3(0, 3, -15);
+            }
+            
+            if (!plane) return;
+            
+            // Load image from base64
+            const image = new Image();
+            image.src = 'data:image/jpeg;base64,' + message.data;
+            image.onload = () => {
+                const texture = new BABYLON.DynamicTexture('cameraTexture', 1024, scene);
+                const ctx = texture.getContext();
+                ctx.drawImage(image, 0, 0);
+                texture.update();
+                
+                if (!plane.material) {
+                    plane.material = new BABYLON.StandardMaterial('cameraMat', scene);
+                }
+                plane.material.emissiveTexture = texture;
+            };
+        }
+        
+        function base64ToArrayBuffer(base64) {
+            const binaryString = atob(base64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+        
+        // === UI EVENT LISTENERS ===
+        document.getElementById('show-camera').addEventListener('change', (e) => {
+            visibility.camera = e.target.checked;
+        });
+        
+        document.getElementById('show-lidar').addEventListener('change', (e) => {
+            visibility.lidar = e.target.checked;
+        });
+        
+        document.getElementById('show-radar').addEventListener('change', (e) => {
+            visibility.radar = e.target.checked;
+        });
+        
+        document.getElementById('show-vehicles').addEventListener('change', (e) => {
+            visibility.vehicles = e.target.checked;
+        });
+        
+        document.getElementById('show-grid').addEventListener('change', (e) => {
+            visibility.grid = e.target.checked;
+        });
+        
+        document.getElementById('view-mode').addEventListener('change', (e) => {
+            viewMode = e.target.value;
+        });
+        
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ') {
+                camera.alpha = Math.PI / 4;
+                camera.beta = Math.PI / 3;
+                camera.radius = 80;
+                camera.target = new BABYLON.Vector3(0, 0, 0);
+            }
+        });
+        
+        // === INITIALIZATION ===
+        function waitForLibraries(timeout = 0) {
+            addDiagnostic(`⏳ Checking for libraries... (${timeout}ms elapsed)`);
+            
+            if (typeof BABYLON === 'undefined') {
+                addDiagnostic('⏳ Waiting for Babylon.js...');
+            } else {
+                addDiagnostic('✅ Babylon.js found');
+            }
+            
+            if (typeof BABYLON !== 'undefined') {
+                addDiagnostic('✅ Babylon.js loaded! Initializing...');
+                try {
+                    initBabylon();
+                    connectWebSocket();
+                } catch (e) {
+                    addDiagnostic(`❌ Initialization error: ${e.message}`, true);
+                    showError('Initialization Error', e.message);
+                }
+            } else if (timeout < 5000) {
+                // Retry for up to 5 seconds (faster failure detection)
+                setTimeout(() => waitForLibraries(timeout + 250), 250);
+            } else {
+                addDiagnostic('❌ Babylon.js failed to load after 5 seconds', true);
+                addDiagnostic('💡 Try: Hard refresh (Ctrl+Shift+R) or check your internet connection', false);
+                showError('Library Loading Failed', 
+                    'Babylon.js failed to load from all CDNs. Try:\n1. Hard refresh: Ctrl+Shift+R (or Cmd+Shift+R on Mac)\n2. Check your internet connection\n3. Try a different browser\n4. Disable VPN/firewall temporarily');
+            }
+        }
+        
+        window.addEventListener('load', () => {
+            addDiagnostic('📍 Window load event fired');
+            waitForLibraries();
+        });
+    </script>
+</body>
+</html>
