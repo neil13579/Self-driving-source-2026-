@@ -5,20 +5,10 @@ Streams sensor data (camera, LIDAR, RADAR) in Foxglove-compatible format
 """
 
 import carla
-import websockets
 import asyncio
 import json
-
-# Custom JSON encoder to handle NumPy types
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.integer):
-            return int(obj)
-        elif isinstance(obj, np.floating):
-            return float(obj)
-        elif isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return super().default(obj)
+from foxglove_websocket import FoxgloveWebSocketServer
+from foxglove_websocket.msg import Image, Pose, PointCloud2
 import numpy as np
 import base64
 import cv2
@@ -47,7 +37,7 @@ sensor_data = {
     'actors': []
 }
 
-clients = set()
+
 frame_count = 0
 
 # ============================================================================
@@ -265,103 +255,82 @@ def build_vehicles_message(timestamp, ego_vehicle, actors):
     }
 
 # ============================================================================
-# FOXGLOVE WEBSOCKET SERVER
-# ============================================================================
 
-async def foxglove_handler(websocket, path, ego_vehicle, world):
-    """Handle Foxglove WebSocket connections"""
-    global frame_count
-    
-    print(f"✅ Foxglove client connected: {websocket.remote_address}")
-    clients.add(websocket)
-    
-    # Get all actors for visualization
-    actors = world.get_actors()
-    
-    try:
+# FOXGLOVE-SDK SERVER
+async def run_foxglove_server(ego_vehicle, world):
+    server = FoxgloveWebSocketServer(port=FOXGLOVE_WS_PORT)
+    print(f"\n🚀 Starting Foxglove WebSocket on ws://localhost:{FOXGLOVE_WS_PORT}")
+    print(f"📱 Open: http://localhost:{FOXGLOVE_HTM_PORT}/foxglove.html")
+    print("=" * 60)
+
+    # Register topics
+    server.add_topic(
+        topic="/camera/rgb",
+        encoding="json",
+        schema=Image.__schema__,
+    )
+    server.add_topic(
+        topic="/lidar/points",
+        encoding="json",
+        schema=PointCloud2.__schema__,
+    )
+    server.add_topic(
+        topic="/ego_pose",
+        encoding="json",
+        schema=Pose.__schema__,
+    )
+    # Add more topics as needed
+
+    async def publish_loop():
+        global frame_count
+        actors = world.get_actors()
         while True:
-            # Build messages
-            messages = []
-            
-            timestamp = int(time.time() * 1000)  # Milliseconds
-            
+            timestamp = int(time.time() * 1000)
             # Camera
             cam_msg = build_camera_message(timestamp)
             if cam_msg:
-                messages.append(cam_msg)
-            
+                await server.send_message("/camera/rgb", cam_msg['message'])
             # LIDAR
             lidar_msg = build_lidar_message(timestamp)
             if lidar_msg:
-                messages.append(lidar_msg)
-            
-            # RADAR
-            radar_msg = build_radar_message(timestamp)
-            if radar_msg:
-                messages.append(radar_msg)
-            
+                await server.send_message("/lidar/points", lidar_msg['message'])
             # Ego Pose
             ego_pose_msg = build_ego_pose_message(timestamp, ego_vehicle.get_transform())
             if ego_pose_msg:
-                messages.append(ego_pose_msg)
-            
-            # Vehicles (as markers)
-            vehicles_msg = build_vehicles_message(timestamp, ego_vehicle, actors)
-            if vehicles_msg:
-                messages.append(vehicles_msg)
-            
-            # Send all messages
-            if messages:
-                try:
-                    payload = json.dumps({
-                        'messages': messages,
-                        'timestamp': timestamp
-                    }, cls=NumpyEncoder)
-                    await websocket.send(payload)
-                    
-                    frame_count += 1
-                    if frame_count % 20 == 0:
-                        print(f"📡 Foxglove: Sent frame {frame_count}, {len(messages)} messages")
-                except websockets.exceptions.ConnectionClosed:
-                    break
-            
-            await asyncio.sleep(0.0025)  # ~20 FPS
-            
-    except Exception as e:
-        import traceback
-        print(f"❌ Foxglove error: {e}")
-        traceback.print_exc()
-    finally:
-        clients.discard(websocket)
-        print(f"❌ Foxglove client disconnected")
+                await server.send_message("/ego_pose", ego_pose_msg['message'])
+            # Add more publishers as needed
+            frame_count += 1
+            if frame_count % 20 == 0:
+                print(f"📡 Foxglove: Sent frame {frame_count}")
+            await asyncio.sleep(0.05)
+
+    await asyncio.gather(server.start(), publish_loop())
 
 # ============================================================================
 # MAIN
 # ============================================================================
 
+
 async def main():
-    """Main server function"""
-    global clients
-    
     # Connect to CARLA
     print("🔗 Connecting to CARLA...")
     client = carla.Client(CARLA_HOST, CARLA_PORT)
     client.set_timeout(10.0)
     world = client.get_world()
     bp_lib = world.get_blueprint_library()
-    
+
     # Spawn or get ego vehicle
     spawn_points = world.get_map().get_spawn_points()
     if not spawn_points:
         print("❌ No spawn points!")
         return
-    
+
     ego_bp = bp_lib.find('vehicle.tesla.model3')
     ego_vehicle = world.spawn_actor(ego_bp, spawn_points[0])
     ego_vehicle.set_simulate_physics(True)
     ego_vehicle.set_autopilot(True)
     print(f"✅ Ego vehicle spawned")
-    
+
     # Setup sensors
     # RGB Camera
     cam_bp = bp_lib.find('sensor.camera.rgb')
@@ -371,7 +340,7 @@ async def main():
     sensor_rgb = world.spawn_actor(cam_bp, carla.Transform(carla.Location(x=1.5, z=2.4)), attach_to=ego_vehicle)
     sensor_rgb.listen(rgb_callback)
     print("✅ RGB Camera attached")
-    
+
     # Depth Camera
     depth_bp = bp_lib.find('sensor.camera.depth')
     depth_bp.set_attribute('image_size_x', str(IM_WIDTH))
@@ -380,54 +349,22 @@ async def main():
     sensor_depth = world.spawn_actor(depth_bp, carla.Transform(carla.Location(x=1.5, z=2.4)), attach_to=ego_vehicle)
     sensor_depth.listen(depth_callback)
     print("✅ Depth Camera attached")
-    
+
     # LIDAR
     lidar_bp = bp_lib.find('sensor.lidar.ray_cast')
     lidar_bp.set_attribute('range', '50')
     sensor_lidar = world.spawn_actor(lidar_bp, carla.Transform(carla.Location(x=0, z=2.4)), attach_to=ego_vehicle)
     sensor_lidar.listen(lidar_callback)
     print("✅ LIDAR attached")
-    
+
     # RADAR
     radar_bp = bp_lib.find('sensor.other.radar')
     sensor_radar = world.spawn_actor(radar_bp, carla.Transform(carla.Location(x=1.5, z=1.0)), attach_to=ego_vehicle)
     sensor_radar.listen(radar_callback)
     print("✅ RADAR attached")
-    
-    # Start Foxglove WebSocket server
-    print(f"\n🚀 Starting Foxglove WebSocket on ws://localhost:{FOXGLOVE_WS_PORT}")
-    print(f"📱 Open: http://localhost:{FOXGLOVE_HTM_PORT}/foxglove.html")
-    print("=" * 60)
-    
-    async def handler(*args):
-        # Accept either (websocket, path) or single-arg websocket depending on websockets version
-        if len(args) == 1:
-            websocket = args[0]
-            path = None
-        else:
-            websocket, path = args
-        try:
-            await foxglove_handler(websocket, path, ego_vehicle, world)
-        except Exception as e:
-            print(f"❌ Foxglove handler error: {e}")
-            import traceback
-            traceback.print_exc()
-    
-    server = await websockets.serve(handler, "localhost", FOXGLOVE_WS_PORT)
-    print(f"✅ Foxglove server ready on port {FOXGLOVE_WS_PORT}!")
-    
-    try:
-        await server.wait_closed()
-    except KeyboardInterrupt:
-        print("\n🛑 Shutting down...")
-    finally:
-        # Cleanup
-        ego_vehicle.destroy()
-        sensor_rgb.destroy()
-        sensor_depth.destroy()
-        sensor_lidar.destroy()
-        sensor_radar.destroy()
-        print("✅ Cleanup complete")
+
+    # Start Foxglove SDK server
+    await run_foxglove_server(ego_vehicle, world)
 
 if __name__ == '__main__':
     try:

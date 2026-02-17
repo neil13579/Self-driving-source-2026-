@@ -16,8 +16,10 @@ opencv-contrib-python>=4.6.0
 flask>=2.2.0
 flask-cors>=3.0.10
 
+
 # Real-time Communication
 websockets>=10.0
+foxglove-sdk>=0.7.0
 
 # Scientific Computing
 numpy>=1.21.0
